@@ -5,8 +5,11 @@ langgraph
 langchain-google-genai
 langchain-openai
 langchain-community
+langchain-mongodb
 sqlalchemy
 psycopg2-binary
+pymongo
+motor
 python-dotenv
 pydantic-settings
 sse-starlette

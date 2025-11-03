@@ -1,6 +1,6 @@
 """
 Chat endpoints for AI tutor interactions
-Full async REST API implementation
+Full async REST API implementation with MongoDB chat storage
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import AsyncIterator
@@ -15,8 +15,9 @@ from app.schemas.session import (
 )
 from app.graphs.generation_graph import generation_app
 from app.services.memory import get_session_state
+from app.services.mongodb import mongodb_service
 from app.api.deps import get_db
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -64,15 +65,34 @@ async def chat_invoke(
     ```
     """
     try:
-        # Get session state from database
+        # Get session state from PostgreSQL
         session_data = get_session_state(request.session_id)
         
         if not session_data:
             raise HTTPException(status_code=404, detail="Session not found")
         
-        # Add user message to chat history
-        current_history = session_data.get("chat_history", [])
-        current_history.append(HumanMessage(content=request.message))
+        # Save user message to MongoDB
+        await mongodb_service.save_message(
+            session_id=request.session_id,
+            user_id=session_data["user_id"],
+            role="user",
+            content=request.message,
+            metadata={"current_day": session_data.get("current_day", 1)}
+        )
+        
+        # Get recent chat history from MongoDB
+        recent_messages = await mongodb_service.get_recent_messages(
+            session_id=request.session_id,
+            count=20  # Get last 20 messages for context
+        )
+        
+        # Convert MongoDB messages to LangChain format
+        chat_history = []
+        for msg in recent_messages:
+            if msg["role"] == "user":
+                chat_history.append(HumanMessage(content=msg["content"]))
+            else:
+                chat_history.append(AIMessage(content=msg["content"]))
         
         # Prepare graph state
         graph_state = {
@@ -81,7 +101,7 @@ async def chat_invoke(
             "topic": session_data["topic"],
             "lesson_plan": session_data.get("lesson_plan"),
             "current_day": session_data.get("current_day", 1),
-            "chat_history": current_history,
+            "chat_history": chat_history,
             "total_days": session_data.get("total_days", 7),
             "time_per_day": session_data.get("time_per_day", "30 minutes")
         }
@@ -93,8 +113,23 @@ async def chat_invoke(
         # Extract AI response
         ai_message = result["chat_history"][-1]
         
+        # Save AI response to MongoDB
+        await mongodb_service.save_message(
+            session_id=request.session_id,
+            user_id=session_data["user_id"],
+            role="assistant",
+            content=ai_message.content,
+            metadata={
+                "current_day": result.get("current_day", 1),
+                "lesson_plan_exists": result.get("lesson_plan") is not None
+            }
+        )
+        
         # Get current day info
         day_title = _get_current_day_title(result)
+        
+        # Get total message count
+        total_messages = await mongodb_service.get_message_count(request.session_id)
         
         return ChatResponse(
             session_id=request.session_id,
@@ -104,7 +139,7 @@ async def chat_invoke(
             metadata={
                 "day_title": day_title,
                 "total_days": result.get("lesson_plan", {}).get("total_days", 0) if result.get("lesson_plan") else 0,
-                "message_count": len(result.get("chat_history", []))
+                "message_count": total_messages
             }
         )
         
@@ -175,16 +210,35 @@ async def chat_stream(request: StreamChatRequest):
     """
     async def event_generator() -> AsyncIterator[str]:
         try:
-            # Get session state
+            # Get session state from PostgreSQL
             session_data = get_session_state(request.session_id)
             
             if not session_data:
                 yield f"data: {json.dumps({'event': 'error', 'data': 'Session not found'})}\n\n"
                 return
             
-            # Add user message to history
-            current_history = session_data.get("chat_history", [])
-            current_history.append(HumanMessage(content=request.message))
+            # Save user message to MongoDB
+            await mongodb_service.save_message(
+                session_id=request.session_id,
+                user_id=session_data["user_id"],
+                role="user",
+                content=request.message,
+                metadata={"current_day": session_data.get("current_day", 1)}
+            )
+            
+            # Get recent chat history from MongoDB
+            recent_messages = await mongodb_service.get_recent_messages(
+                session_id=request.session_id,
+                count=20
+            )
+            
+            # Convert to LangChain format
+            chat_history = []
+            for msg in recent_messages:
+                if msg["role"] == "user":
+                    chat_history.append(HumanMessage(content=msg["content"]))
+                else:
+                    chat_history.append(AIMessage(content=msg["content"]))
             
             # Prepare graph state
             graph_state = {
@@ -193,7 +247,7 @@ async def chat_stream(request: StreamChatRequest):
                 "topic": session_data["topic"],
                 "lesson_plan": session_data.get("lesson_plan"),
                 "current_day": session_data.get("current_day", 1),
-                "chat_history": current_history,
+                "chat_history": chat_history,
                 "total_days": session_data.get("total_days", 7),
                 "time_per_day": session_data.get("time_per_day", "30 minutes")
             }
@@ -223,13 +277,30 @@ async def chat_stream(request: StreamChatRequest):
                                 }
                             })}\n\n"
             
+            # Save AI response to MongoDB
+            if full_response:
+                await mongodb_service.save_message(
+                    session_id=request.session_id,
+                    user_id=session_data["user_id"],
+                    role="assistant",
+                    content=full_response,
+                    metadata={
+                        "current_day": session_data.get("current_day", 1),
+                        "lesson_plan_exists": session_data.get("lesson_plan") is not None
+                    }
+                )
+            
+            # Get total message count
+            total_messages = await mongodb_service.get_message_count(request.session_id)
+            
             # Send completion event
             yield f"data: {json.dumps({
                 'event': 'done',
                 'data': 'Stream complete',
                 'metadata': {
                     'total_chars': len(full_response),
-                    'current_day': session_data.get('current_day', 1)
+                    'current_day': session_data.get('current_day', 1),
+                    'total_messages': total_messages
                 }
             })}\n\n"
             
@@ -256,7 +327,7 @@ async def get_graph_state(session_id: str):
     **Response includes:**
     - Current day in lesson plan
     - Whether lesson plan exists
-    - Total message count
+    - Total message count (from MongoDB)
     - Next node to execute (for debugging)
     - Full metadata (topic, plan, etc.)
     """
@@ -265,6 +336,9 @@ async def get_graph_state(session_id: str):
         config = {"configurable": {"thread_id": session_id}}
         state_snapshot = generation_app.get_state(config)
         
+        # Get message count from MongoDB
+        total_messages = await mongodb_service.get_message_count(session_id)
+        
         if state_snapshot and state_snapshot.values:
             state_values = state_snapshot.values
             
@@ -272,13 +346,14 @@ async def get_graph_state(session_id: str):
                 session_id=session_id,
                 current_day=state_values.get("current_day", 1),
                 lesson_plan_exists=state_values.get("lesson_plan") is not None,
-                total_messages=len(state_values.get("chat_history", [])),
+                total_messages=total_messages,
                 next_node=state_snapshot.next[0] if state_snapshot.next else None,
                 metadata={
                     "topic": state_values.get("topic"),
                     "total_days": state_values.get("total_days", 0),
                     "time_per_day": state_values.get("time_per_day"),
-                    "lesson_plan_summary": _get_lesson_plan_summary(state_values.get("lesson_plan"))
+                    "lesson_plan_summary": _get_lesson_plan_summary(state_values.get("lesson_plan")),
+                    "source": "graph_checkpointer"
                 }
             )
         
@@ -292,7 +367,7 @@ async def get_graph_state(session_id: str):
             session_id=session_id,
             current_day=session_data.get("current_day", 1),
             lesson_plan_exists=session_data.get("lesson_plan") is not None,
-            total_messages=len(session_data.get("chat_history", [])),
+            total_messages=total_messages,
             next_node=None,
             metadata={
                 "topic": session_data.get("topic"),
@@ -306,6 +381,91 @@ async def get_graph_state(session_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"State retrieval error: {str(e)}")
+
+
+@router.get("/history/{session_id}")
+async def get_chat_history(
+    session_id: str,
+    limit: int = 50,
+    skip: int = 0
+):
+    """
+    Get chat history for a session from MongoDB.
+    
+    **Args:**
+    - **session_id**: Session identifier
+    - **limit**: Maximum number of messages (default: 50, max: 100)
+    - **skip**: Number of messages to skip for pagination (default: 0)
+    
+    **Returns:**
+    - List of chat messages with metadata
+    
+    **Example:**
+    ```bash
+    curl "http://localhost:8001/api/v1/chat/history/{session_id}?limit=20&skip=0"
+    ```
+    """
+    try:
+        # Validate limits
+        if limit > 100:
+            limit = 100
+        if skip < 0:
+            skip = 0
+        
+        # Get messages from MongoDB
+        messages = await mongodb_service.get_chat_history(
+            session_id=session_id,
+            limit=limit,
+            skip=skip
+        )
+        
+        # Get total count
+        total_count = await mongodb_service.get_message_count(session_id)
+        
+        return {
+            "session_id": session_id,
+            "messages": messages,
+            "total_count": total_count,
+            "returned_count": len(messages),
+            "limit": limit,
+            "skip": skip
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve chat history: {str(e)}"
+        )
+
+
+@router.delete("/history/{session_id}", status_code=204)
+async def delete_chat_history(session_id: str):
+    """
+    Delete all chat history for a session from MongoDB.
+    
+    **Args:**
+    - **session_id**: Session identifier
+    
+    **Warning:** This action cannot be undone!
+    """
+    try:
+        deleted_count = await mongodb_service.delete_session_chats(session_id)
+        
+        if deleted_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="No chat history found for this session"
+            )
+        
+        return {"message": f"Deleted {deleted_count} messages"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete chat history: {str(e)}"
+        )
 
 
 def _get_current_day_title(result: dict) -> str:

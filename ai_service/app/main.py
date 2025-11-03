@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.db.models import Base
 from app.db.session import engine
 from app.api.router import api_router
+from app.services.mongodb import mongodb_service
 
 
 @asynccontextmanager
@@ -20,13 +21,23 @@ async def lifespan(app: FastAPI):
     """
     # Startup: Create database tables
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created")
+    print("✅ PostgreSQL tables created")
+    
+    # Connect to MongoDB
+    try:
+        await mongodb_service.connect()
+        print("✅ MongoDB connected")
+    except Exception as e:
+        print(f"⚠️  MongoDB connection failed: {e}")
+        print("⚠️  Chat history will not be persisted")
+    
     print("✅ AI Microservice started successfully")
     print(f"📊 Environment: {settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else 'local'}")
     
     yield
     
     # Shutdown: Cleanup tasks
+    await mongodb_service.disconnect()
     print("🛑 AI Microservice shutting down")
 
 
@@ -82,7 +93,8 @@ async def root():
         "features": [
             "Async REST API (FastAPI)",
             "Server-Sent Events streaming",
-            "PostgreSQL persistence",
+            "PostgreSQL persistence (sessions & plans)",
+            "MongoDB persistence (chat history)",
             "LangGraph orchestration",
             "Dual LLM (Gemini + GPT-4)"
         ],
