@@ -110,3 +110,81 @@ class HealthResponse(BaseModel):
                 "version": "1.0.0"
             }
         }
+
+
+class ChatRequest(BaseModel):
+    """Request model for synchronous chat."""
+    session_id: str = Field(..., description="Session identifier")
+    message: str = Field(..., description="User's message", min_length=1)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "session_id": "987fcdeb-51a2-43f8-9c3d-0123456789ab",
+                "message": "Can you explain what a neural network is?"
+            }
+        }
+
+
+class ChatResponse(BaseModel):
+    """Response model for synchronous chat."""
+    session_id: str = Field(..., description="Session identifier")
+    message: str = Field(..., description="AI tutor's response")
+    current_day: int = Field(..., description="Current day in the plan")
+    lesson_plan_exists: bool = Field(..., description="Whether lesson plan exists")
+    metadata: dict = Field(..., description="Additional metadata")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "session_id": "987fcdeb-51a2-43f8-9c3d-0123456789ab",
+                "message": "Great question! Let me guide you through neural networks...",
+                "current_day": 3,
+                "lesson_plan_exists": True,
+                "metadata": {
+                    "day_title": "Introduction to Neural Networks",
+                    "total_days": 7,
+                    "message_count": 16
+                }
+            }
+        }
+
+
+class StreamChatRequest(BaseModel):
+    """Request model for streaming chat."""
+    session_id: str = Field(..., description="Session identifier")
+    message: str = Field(..., description="User's message", min_length=1)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "session_id": "987fcdeb-51a2-43f8-9c3d-0123456789ab",
+                "message": "Tell me about backpropagation"
+            }
+        }
+
+
+class GraphStateResponse(BaseModel):
+    """Response model for graph state inspection."""
+    session_id: str = Field(..., description="Session identifier")
+    current_day: int = Field(..., description="Current day")
+    lesson_plan_exists: bool = Field(..., description="Whether plan exists")
+    total_messages: int = Field(..., description="Number of messages")
+    next_node: Optional[str] = Field(None, description="Next node to execute")
+    metadata: dict = Field(..., description="Additional metadata")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "session_id": "987fcdeb-51a2-43f8-9c3d-0123456789ab",
+                "current_day": 3,
+                "lesson_plan_exists": True,
+                "total_messages": 15,
+                "next_node": "tutor",
+                "metadata": {
+                    "topic": "Machine Learning Fundamentals",
+                    "total_days": 7,
+                    "time_per_day": "45 minutes"
+                }
+            }
+        }

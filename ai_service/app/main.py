@@ -1,6 +1,6 @@
 """
 Main FastAPI Application Entry Point
-Clean, modular structure with separated concerns
+Clean, modular structure with async REST API
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +10,6 @@ from app.core.config import settings
 from app.db.models import Base
 from app.db.session import engine
 from app.api.router import api_router
-from app.api.routes.langserve import setup_langserve_routes
 
 
 @asynccontextmanager
@@ -23,6 +22,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created")
     print("✅ AI Microservice started successfully")
+    print(f"📊 Environment: {settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else 'local'}")
     
     yield
     
@@ -33,8 +33,8 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(
     title="DocuLearn AI - Generation Mode",
-    description="LangGraph-powered personalized learning microservice with PostgreSQL persistence",
-    version="1.0.0",
+    description="Async REST API for AI-powered personalized learning with LangGraph",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -49,11 +49,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(api_router)
+# Include API routes with prefix
+app.include_router(api_router, prefix="/api/v1")
 
-# Setup LangServe routes (separate from REST API)
-setup_langserve_routes(app)
+
+@app.get("/")
+async def root():
+    """Root endpoint with service information and available endpoints."""
+    return {
+        "service": "DocuLearn AI - Generation Mode",
+        "version": "2.0.0",
+        "status": "operational",
+        "description": "AI-powered personalized learning microservice",
+        "docs": "/docs",
+        "api_prefix": "/api/v1",
+        "endpoints": {
+            "health": {
+                "root": "GET /api/v1/",
+                "health": "GET /api/v1/health"
+            },
+            "sessions": {
+                "create": "POST /api/v1/sessions/create",
+                "details": "GET /api/v1/sessions/{session_id}",
+                "lesson_plan": "GET /api/v1/sessions/{session_id}/lesson-plan"
+            },
+            "chat": {
+                "invoke": "POST /api/v1/chat/invoke",
+                "stream": "POST /api/v1/chat/stream",
+                "state": "GET /api/v1/chat/state/{session_id}"
+            }
+        },
+        "features": [
+            "Async REST API (FastAPI)",
+            "Server-Sent Events streaming",
+            "PostgreSQL persistence",
+            "LangGraph orchestration",
+            "Dual LLM (Gemini + GPT-4)"
+        ],
+        "authentication": "Handled by separate Cognito microservice"
+    }
 
 
 

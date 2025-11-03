@@ -6,12 +6,20 @@ from app.schemas.session import (
     CreatePlanRequest,
     CreatePlanResponse,
     SessionResponse,
-    HealthResponse
+    HealthResponse,
+    ChatRequest,
+    ChatResponse,
+    StreamChatRequest,
+    GraphStateResponse
 )
 
 __all__ = [
     "CreatePlanRequest",
     "CreatePlanResponse", 
     "SessionResponse",
-    "HealthResponse"
+    "HealthResponse",
+    "ChatRequest",
+    "ChatResponse",
+    "StreamChatRequest",
+    "GraphStateResponse"
 ]

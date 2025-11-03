@@ -6,7 +6,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 from typing import Dict, Any
 
-from app.schemas import (
+from app.schemas.session import (
     CreatePlanRequest,
     CreatePlanResponse,
     SessionResponse
