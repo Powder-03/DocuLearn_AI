@@ -3,7 +3,7 @@ Session-related Pydantic models
 Request and response schemas for learning sessions
 """
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, List
 
 
 class CreatePlanRequest(BaseModel):
@@ -188,3 +188,48 @@ class GraphStateResponse(BaseModel):
                 }
             }
         }
+
+
+class CreateSessionRequest(BaseModel):
+    """Request model for creating a new learning session"""
+    user_id: str = Field(..., min_length=1, description="User identifier")
+    topic: str = Field(..., min_length=1, max_length=500, description="Learning topic")
+    total_days: int = Field(7, ge=1, le=365, description="Total days for learning plan")
+    time_per_day: str = Field("30 minutes", description="Time commitment per day")
+    
+    @field_validator('topic')
+    @classmethod
+    def topic_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('Topic cannot be empty')
+        return v.strip()
+
+
+class SessionSummary(BaseModel):
+    """Summary of a session for list views"""
+    session_id: str
+    topic: str
+    current_day: int
+    total_days: int
+    time_per_day: str
+    is_completed: bool
+    created_at: Optional[str]
+    updated_at: Optional[str]
+
+
+class SessionListResponse(BaseModel):
+    """Response model for listing sessions"""
+    total: int
+    skip: int
+    limit: int
+    sessions: List[SessionSummary]
+
+
+class SessionStatsResponse(BaseModel):
+    """Response model for user learning statistics"""
+    total_sessions: int
+    completed_sessions: int
+    in_progress_sessions: int
+    total_days_planned: int
+    total_days_completed: int
+    completion_rate: float

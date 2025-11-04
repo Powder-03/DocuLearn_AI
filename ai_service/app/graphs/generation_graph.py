@@ -1,9 +1,8 @@
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage, messages_to_dict, messages_from_dict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain.schema import messages_to_dict, messages_from_dict
 
 from app.graphs.state import GenerationGraphState
 from app.core.llm_factory import get_llm

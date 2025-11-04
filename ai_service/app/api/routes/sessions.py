@@ -1,182 +1,178 @@
 """
-Learning session management routes
-Handles session creation, retrieval, and management
+Learning session management routes - Thin controllers
+Delegates all business logic to session_service
 """
-import uuid
-from fastapi import APIRouter, HTTPException, status
-from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, Query, status
+from typing import Optional
 
 from app.schemas.session import (
+    CreateSessionRequest,
+    SessionResponse,
+    SessionListResponse,
+    SessionStatsResponse,
     CreatePlanRequest,
-    CreatePlanResponse,
-    SessionResponse
+    CreatePlanResponse
 )
-from app.services.memory import create_session, get_session_state
-from app.graphs.generation_graph import generation_app
+from app.services.session_service import session_service
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
 
-@router.post("/create", response_model=CreatePlanResponse, status_code=status.HTTP_201_CREATED)
-async def create_learning_plan(request: CreatePlanRequest) -> CreatePlanResponse:
+@router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
+async def create_session(request: CreateSessionRequest):
     """
-    Create a new learning session and generate an initial lesson plan.
+    Create a new learning session
     
-    This endpoint:
-    1. Generates a new session_id
-    2. Creates a database record
-    3. Invokes the generation_app to trigger plan_generator_node
-    4. Returns the session_id for future interactions
-    
-    **Args:**
-    - **user_id**: UUID of the authenticated user
-    - **topic**: The subject/topic to learn
-    - **total_days**: Number of days for the learning plan (1-30)
-    - **time_per_day**: Daily time commitment (e.g., "30 minutes")
-    
-    **Returns:**
-    - **session_id**: Unique identifier for this learning session
-    - **message**: Success confirmation message
-    - **topic**: The learning topic
-    - **total_days**: Plan duration
+    Creates a structured learning plan for the specified topic.
     """
     try:
-        # Generate new session ID
-        session_id = str(uuid.uuid4())
-        
-        # Create session in database
-        initial_state = create_session(
-            session_id=session_id,
+        result = session_service.create_session(
             user_id=request.user_id,
             topic=request.topic,
             total_days=request.total_days,
             time_per_day=request.time_per_day
         )
+        return SessionResponse(**result)
         
-        # Invoke the graph to trigger planning
-        # This will execute the plan_generator_node
-        result = generation_app.invoke(initial_state)
-        
-        return CreatePlanResponse(
-            session_id=session_id,
-            message="Learning plan created successfully",
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unexpected error: {str(e)}")
+
+
+@router.post("/create", response_model=CreatePlanResponse, status_code=status.HTTP_201_CREATED)
+async def create_learning_plan(request: CreatePlanRequest) -> CreatePlanResponse:
+    """
+    Create a new learning session (legacy endpoint for backward compatibility)
+    
+    This endpoint maintains compatibility with existing API contracts.
+    """
+    try:
+        result = session_service.create_session(
+            user_id=request.user_id,
             topic=request.topic,
-            total_days=request.total_days
+            total_days=request.total_days,
+            time_per_day=request.time_per_day
+        )
+        return CreatePlanResponse(
+            session_id=result["session_id"],
+            message=result["message"],
+            topic=result["topic"],
+            total_days=result["total_days"]
         )
         
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create plan: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create plan: {str(e)}")
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
-async def get_session_details(session_id: str) -> SessionResponse:
+async def get_session(
+    session_id: str,
+    user_id: Optional[str] = Query(None, description="User ID for authorization")
+):
     """
-    Retrieve the current state of a learning session.
-    
-    Useful for:
-    - Debugging session state
-    - Monitoring learning progress
-    - Dashboard displays
-    - Analytics
-    
-    **Args:**
-    - **session_id**: UUID of the learning session
-    
-    **Returns:**
-    - Complete session metadata and progress information
-    
-    **Raises:**
-    - **404**: Session not found
-    - **500**: Database error
+    Get details of a specific session
     """
     try:
-        state = get_session_state(session_id)
+        session = session_service.get_session(session_id, user_id)
         
-        return SessionResponse(
-            session_id=state["session_id"],
-            user_id=state["user_id"],
-            topic=state["topic"],
-            current_day=state["current_day"],
-            total_days=state["total_days"],
-            has_lesson_plan=state["lesson_plan"] is not None,
-            message_count=len(state["chat_history"]),
-            created_at=None  # TODO: Add timestamp from DB
-        )
+        if not session:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
         
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve session: {str(e)}"
-        )
-
-
-@router.get("/{session_id}/lesson-plan")
-async def get_lesson_plan(session_id: str) -> Dict[str, Any]:
-    """
-    Retrieve the lesson plan for a specific session.
-    
-    **Args:**
-    - **session_id**: UUID of the learning session
-    
-    **Returns:**
-    - The complete lesson plan JSON
-    """
-    try:
-        state = get_session_state(session_id)
-        lesson_plan = state.get("lesson_plan")
+        return SessionResponse(**session)
         
-        if not lesson_plan:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Lesson plan not yet generated for this session"
-            )
-        
-        return {
-            "session_id": session_id,
-            "lesson_plan": lesson_plan,
-            "current_day": state["current_day"]
-        }
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve lesson plan: {str(e)}"
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error retrieving session: {str(e)}")
+
+
+@router.get("", response_model=SessionListResponse)
+async def list_sessions(
+    user_id: str = Query(..., description="User ID to fetch sessions for"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum records to return"),
+    include_completed: bool = Query(True, description="Include completed sessions")
+):
+    """
+    List all sessions for a user with pagination
+    """
+    try:
+        result = session_service.list_user_sessions(
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            include_completed=include_completed
         )
+        return SessionListResponse(**result)
+        
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error listing sessions: {str(e)}")
 
 
-@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_session(session_id: str):
+@router.patch("/{session_id}/progress")
+async def update_progress(
+    session_id: str,
+    user_id: Optional[str] = Query(None, description="User ID for authorization")
+):
     """
-    Delete a learning session.
-    
-    **Note:** This is a soft delete - the session is marked as inactive
-    but data is retained for analytics.
-    
-    **Args:**
-    - **session_id**: UUID of the learning session to delete
+    Advance session to next day
     """
-    # TODO: Implement soft delete logic
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Session deletion not yet implemented"
-    )
+    try:
+        result = session_service.update_session_progress(
+            session_id=session_id,
+            user_id=user_id,
+            increment_day=True
+        )
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating progress: {str(e)}")
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_200_OK)
+async def delete_session(
+    session_id: str,
+    user_id: Optional[str] = Query(None, description="User ID for authorization")
+):
+    """
+    Delete a session and all associated data
+    """
+    try:
+        result = session_service.delete_session(session_id, user_id)
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting session: {str(e)}")
+
+
+@router.get("/stats/{user_id}", response_model=SessionStatsResponse)
+async def get_user_statistics(user_id: str):
+    """
+    Get learning statistics for a user
+    """
+    try:
+        stats = session_service.get_session_statistics(user_id)
+        return SessionStatsResponse(**stats)
+        
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching statistics: {str(e)}")
+

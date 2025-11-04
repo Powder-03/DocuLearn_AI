@@ -1,7 +1,7 @@
 import uuid
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
-from langchain.schema import messages_to_dict, messages_from_dict
+from langchain_core.messages import messages_to_dict, messages_from_dict
 
 from app.db.session import SessionLocal
 from app.db.models import LearningSession

@@ -19,6 +19,8 @@ class LearningSession(Base):
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     mode = Column(String, default="generation", nullable=False)
     topic = Column(String, nullable=True)
+    total_days = Column(Integer, default=7, nullable=False)
+    time_per_day = Column(String, default="30 minutes", nullable=False)
     lesson_plan = Column(JSONB, nullable=True)
     chat_history = Column(JSONB, nullable=True)  # Stores List[Dict] representation of messages
     memory_summary = Column(Text, nullable=True)
