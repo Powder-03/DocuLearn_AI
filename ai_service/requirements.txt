@@ -8,6 +8,7 @@ langchain-community
 langchain-mongodb
 sqlalchemy
 psycopg2-binary
+alembic
 pymongo
 motor
 python-dotenv
