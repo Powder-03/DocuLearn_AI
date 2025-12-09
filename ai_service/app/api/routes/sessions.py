@@ -97,7 +97,7 @@ async def get_session(
 
 @router.get("", response_model=SessionListResponse)
 async def list_sessions(
-    user_id: str = Query(..., description="User ID to fetch sessions for"),
+    user_id: str = Query(..., description="User ID from authentication service"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum records to return"),
     include_completed: bool = Query(True, description="Include completed sessions")

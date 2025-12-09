@@ -48,8 +48,13 @@ class SessionService:
             raise ValueError("Total days must be between 1 and 365")
         
         try:
+            # Generate a unique session ID
+            import uuid
+            session_id = str(uuid.uuid4())
+            
             # Create session state (PostgreSQL + in-memory)
-            session_id = create_session_state(
+            create_session_state(
+                session_id=session_id,
                 user_id=user_id,
                 topic=topic,
                 total_days=total_days,
@@ -63,6 +68,8 @@ class SessionService:
                 "total_days": total_days,
                 "time_per_day": time_per_day,
                 "current_day": 1,
+                "has_lesson_plan": False,
+                "message_count": 0,
                 "created_at": datetime.utcnow().isoformat(),
                 "message": "Session created successfully"
             }
@@ -98,19 +105,21 @@ class SessionService:
                 return None
             
             # Authorization check if user_id provided
-            if user_id and session.user_id != user_id:
+            if user_id and str(session.user_id) != user_id:
                 raise PermissionError("You don't have permission to access this session")
             
+            # Count messages in chat history
+            message_count = len(session.chat_history) if session.chat_history else 0
+            
             return {
-                "session_id": session.session_id,
-                "user_id": session.user_id,
+                "session_id": str(session.session_id),
+                "user_id": str(session.user_id),
                 "topic": session.topic,
-                "total_days": session.total_days,
-                "time_per_day": session.time_per_day,
+                "total_days": session.total_days if hasattr(session, 'total_days') else (session.lesson_plan.get('total_days', 7) if session.lesson_plan else 7),
                 "current_day": session.current_day,
-                "created_at": session.created_at.isoformat() if session.created_at else None,
-                "updated_at": session.updated_at.isoformat() if session.updated_at else None,
-                "is_completed": session.current_day >= session.total_days
+                "has_lesson_plan": session.lesson_plan is not None,
+                "message_count": message_count,
+                "created_at": session.created_at.isoformat() if session.created_at else None
             }
             
         finally:
@@ -139,8 +148,16 @@ class SessionService:
         db: Session = next(get_db())
         
         try:
+            # Convert user_id to UUID if needed
+            import uuid
+            try:
+                user_uuid = uuid.UUID(user_id)
+            except (ValueError, AttributeError):
+                # If user_id is not a valid UUID, generate one based on the string
+                user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, user_id)
+            
             query = db.query(LearningSession).filter(
-                LearningSession.user_id == user_id
+                LearningSession.user_id == user_uuid
             )
             
             # Filter completed sessions if needed
@@ -163,7 +180,7 @@ class SessionService:
                 "limit": limit,
                 "sessions": [
                     {
-                        "session_id": s.session_id,
+                        "session_id": str(s.session_id),
                         "topic": s.topic,
                         "current_day": s.current_day,
                         "total_days": s.total_days,

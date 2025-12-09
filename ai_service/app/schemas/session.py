@@ -192,7 +192,7 @@ class GraphStateResponse(BaseModel):
 
 class CreateSessionRequest(BaseModel):
     """Request model for creating a new learning session"""
-    user_id: str = Field(..., min_length=1, description="User identifier")
+    user_id: str = Field(..., min_length=1, description="User identifier from authentication service")
     topic: str = Field(..., min_length=1, max_length=500, description="Learning topic")
     total_days: int = Field(7, ge=1, le=365, description="Total days for learning plan")
     time_per_day: str = Field("30 minutes", description="Time commitment per day")

@@ -22,9 +22,15 @@ def get_session_state(session_id: str) -> Dict[str, Any]:
     """
     db: Session = SessionLocal()
     try:
+        # Convert session_id to UUID if needed
+        try:
+            session_uuid = uuid.UUID(session_id)
+        except (ValueError, AttributeError):
+            raise ValueError(f"Invalid session_id format: {session_id}")
+        
         # Query for the session
         session = db.query(LearningSession).filter(
-            LearningSession.session_id == uuid.UUID(session_id)
+            LearningSession.session_id == session_uuid
         ).first()
         
         if not session:
@@ -67,9 +73,15 @@ def update_session_state(session_id: str, updates: Dict[str, Any]) -> None:
     """
     db: Session = SessionLocal()
     try:
+        # Convert session_id to UUID if needed
+        try:
+            session_uuid = uuid.UUID(session_id)
+        except (ValueError, AttributeError):
+            raise ValueError(f"Invalid session_id format: {session_id}")
+        
         # Query for the session
         session = db.query(LearningSession).filter(
-            LearningSession.session_id == uuid.UUID(session_id)
+            LearningSession.session_id == session_uuid
         ).first()
         
         if not session:
@@ -104,7 +116,7 @@ def create_session(
     
     Args:
         session_id: UUID string for the new session
-        user_id: UUID string identifying the user
+        user_id: UUID string or regular string identifying the user
         topic: The learning topic
         total_days: Number of days in the learning plan
         time_per_day: Time commitment per day (e.g., "30 minutes")
@@ -114,10 +126,17 @@ def create_session(
     """
     db: Session = SessionLocal()
     try:
+        # Convert user_id to UUID if it's not already one
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except (ValueError, AttributeError):
+            # If user_id is not a valid UUID, generate one based on the string
+            user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, user_id)
+        
         # Create new session
         new_session = LearningSession(
             session_id=uuid.UUID(session_id),
-            user_id=uuid.UUID(user_id),
+            user_id=user_uuid,
             mode="generation",
             topic=topic,
             lesson_plan=None,  # Will be created by plan_generator_node
