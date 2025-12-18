@@ -59,6 +59,10 @@ class MongoDBService:
             self.client.close()
             logger.info("MongoDB connection closed")
     
+    async def close(self):
+        """Alias for disconnect"""
+        await self.disconnect()
+    
     async def save_message(
         self,
         session_id: str,

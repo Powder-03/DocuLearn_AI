@@ -15,37 +15,44 @@ from app.services.mongodb import mongodb_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Lifespan event handler for startup and shutdown tasks.
-    Replaces deprecated @app.on_event decorators.
-    """
-    # Startup: Create database tables
-    Base.metadata.create_all(bind=engine)
-    print("✅ PostgreSQL tables created")
+    """Manage application lifecycle - startup and shutdown events."""
+    # Startup
+    print("🚀 Starting DocuLearn AI Service...")
+    print("📊 Cloud Infrastructure:")
+    print("   - PostgreSQL: Neon Cloud")
+    print("   - MongoDB: Atlas Cloud")
+    print(f"   - LLM: Groq ({settings.PLANNING_LLM_MODEL})")
     
-    # Connect to MongoDB
+    # Create database tables in Neon
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Neon PostgreSQL tables created/verified")
+    except Exception as e:
+        print(f"⚠️  PostgreSQL setup warning: {e}")
+    
+    # Connect to MongoDB Atlas
     try:
         await mongodb_service.connect()
-        print("✅ MongoDB connected")
+        print("✅ MongoDB Atlas connected")
     except Exception as e:
-        print(f"⚠️  MongoDB connection failed: {e}")
-        print("⚠️  Chat history will not be persisted")
+        print(f"❌ MongoDB Atlas connection failed: {e}")
+        raise
     
-    print("✅ AI Microservice started successfully")
-    print(f"📊 Environment: {settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else 'local'}")
+    print("✅ DocuLearn AI Service ready for production!")
     
     yield
     
-    # Shutdown: Cleanup tasks
-    await mongodb_service.disconnect()
-    print("🛑 AI Microservice shutting down")
+    # Shutdown
+    print("🛑 Shutting down DocuLearn AI Service...")
+    await mongodb_service.close()
+    print("✅ Connections closed")
 
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="DocuLearn AI - Generation Mode",
-    description="Async REST API for AI-powered personalized learning with LangGraph",
-    version="2.0.0",
+    title="DocuLearn AI - Production",
+    description="AI-powered learning with Groq Llama 3.1 70B, Neon PostgreSQL, and MongoDB Atlas",
+    version="2.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -68,10 +75,17 @@ app.include_router(api_router, prefix="/api/v1")
 async def root():
     """Root endpoint with service information and available endpoints."""
     return {
-        "service": "DocuLearn AI - Generation Mode",
-        "version": "2.0.0",
+        "service": "DocuLearn AI - Production Ready",
+        "version": "2.1.0",
         "status": "operational",
         "description": "AI-powered personalized learning microservice",
+        "infrastructure": {
+            "llm_provider": "Groq",
+            "llm_model": settings.PLANNING_LLM_MODEL,
+            "database": "Neon PostgreSQL (Cloud)",
+            "chat_storage": "MongoDB Atlas (Cloud)",
+            "deployment": "AWS Lambda Ready"
+        },
         "docs": "/docs",
         "api_prefix": "/api/v1",
         "endpoints": {
@@ -91,12 +105,13 @@ async def root():
             }
         },
         "features": [
-            "Async REST API (FastAPI)",
-            "Server-Sent Events streaming",
-            "PostgreSQL persistence (sessions & plans)",
-            "MongoDB persistence (chat history)",
-            "LangGraph orchestration",
-            "Dual LLM (Gemini + GPT-4)"
+            "100% Cloud Infrastructure",
+            "Neon PostgreSQL (Serverless)",
+            "MongoDB Atlas (Managed)",
+            "Groq LLM (Ultra-fast)",
+            "AWS Lambda Compatible",
+            "Zero local dependencies",
+            "Production ready"
         ],
         "authentication": "Handled by separate Cognito microservice"
     }

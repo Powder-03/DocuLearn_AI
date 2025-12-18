@@ -6,6 +6,7 @@ from langchain_core.output_parsers import JsonOutputParser
 
 from app.graphs.state import GenerationGraphState
 from app.core.llm_factory import get_llm
+from app.core.config import settings
 from app.services.memory import get_session_state, update_session_state
 
 
@@ -14,8 +15,12 @@ def plan_generator_node(state: GenerationGraphState) -> Dict[str, Any]:
     Planning node that generates a JSON lesson plan.
     Runs only once per session to create the learning roadmap.
     """
-    # Use Gemini for planning
-    llm = get_llm("google", "gemini-2.0-flash-exp", temperature=0.7)
+    # Use configured LLM for planning
+    llm = get_llm(
+        settings.PLANNING_LLM_PROVIDER,
+        settings.PLANNING_LLM_MODEL,
+        temperature=settings.PLANNING_LLM_TEMPERATURE
+    )
     
     # Create a prompt for generating the lesson plan
     planning_prompt = ChatPromptTemplate.from_messages([
@@ -88,8 +93,12 @@ def tutor_node(state: GenerationGraphState) -> Dict[str, Any]:
     Tutoring node that handles all subsequent chat interactions.
     Follows the generated lesson plan and guides the learner.
     """
-    # Use GPT-4o for tutoring
-    llm = get_llm("openai", "gpt-4o", temperature=0.8)
+    # Use configured LLM for tutoring
+    llm = get_llm(
+        settings.TUTORING_LLM_PROVIDER,
+        settings.TUTORING_LLM_MODEL,
+        temperature=settings.TUTORING_LLM_TEMPERATURE
+    )
     
     # Get the latest session state from database
     session_id = state["session_id"]

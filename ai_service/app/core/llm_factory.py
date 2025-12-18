@@ -1,14 +1,12 @@
 import os
 from functools import lru_cache
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.language_models import BaseChatModel
 from app.core.config import settings
 
 
-# Set environment variables for API keys
-os.environ["GOOGLE_API_KEY"] = settings.GOOGLE_API_KEY
-os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+# Set environment variable for Groq API key
+os.environ["GROQ_API_KEY"] = settings.GROQ_API_KEY
 
 
 @lru_cache(maxsize=10)
@@ -17,22 +15,18 @@ def get_llm(model_provider: str, model_name: str, temperature: float = 0.7) -> B
     Factory function to get an LLM instance based on provider and model name.
     
     Args:
-        model_provider: Either "google" or "openai"
-        model_name: The specific model name (e.g., "gemini-2.5-flash", "gpt-4o")
+        model_provider: "groq" (primary provider)
+        model_name: The specific model name (e.g., "llama-3.1-70b-versatile")
         temperature: Temperature setting for the model (default 0.7)
     
     Returns:
         BaseChatModel: An instance of the requested LLM
     """
-    if model_provider.lower() == "google":
-        return ChatGoogleGenerativeAI(
+    if model_provider.lower() == "groq":
+        return ChatGroq(
             model=model_name,
-            temperature=temperature
-        )
-    elif model_provider.lower() == "openai":
-        return ChatOpenAI(
-            model=model_name,
-            temperature=temperature
+            temperature=temperature,
+            max_tokens=8192
         )
     else:
-        raise ValueError(f"Unsupported model provider: {model_provider}")
+        raise ValueError(f"Unsupported model provider: {model_provider}. Use 'groq'.")

@@ -1,5 +1,7 @@
+# AWS Lambda optimized requirements
 fastapi
-uvicorn[standard]
+mangum
+uvicorn
 langchain
 langgraph
 langchain-groq
