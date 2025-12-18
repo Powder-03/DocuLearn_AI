@@ -26,7 +26,9 @@ def get_llm(model_provider: str, model_name: str, temperature: float = 0.7) -> B
         return ChatGroq(
             model=model_name,
             temperature=temperature,
-            max_tokens=8192
+            max_tokens=8192,
+            timeout=60,
+            max_retries=2
         )
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}. Use 'groq'.")

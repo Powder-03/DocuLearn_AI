@@ -5,8 +5,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING, DESCENDING
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import os
 import logging
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,37 +21,54 @@ class MongoDBService:
         self.sessions_collection = None
         
     async def connect(self):
-        """Connect to MongoDB"""
-        mongodb_url = os.getenv("MONGODB_URL")
-        if not mongodb_url:
-            raise ValueError("MONGODB_URL not set in environment")
-        
-        logger.info(f"Connecting to MongoDB...")
-        self.client = AsyncIOMotorClient(mongodb_url)
-        self.db = self.client.get_default_database()
-        self.chats_collection = self.db.chats
-        self.sessions_collection = self.db.sessions
-        
-        # Create indexes
-        await self._create_indexes()
-        logger.info("✅ MongoDB connected successfully")
+        """Connect to MongoDB Atlas"""
+        try:
+            logger.info("Connecting to MongoDB Atlas...")
+            
+            self.client = AsyncIOMotorClient(
+                settings.MONGODB_URL,
+                serverSelectionTimeoutMS=10000,
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000,
+                maxPoolSize=50,
+                minPoolSize=5
+            )
+            
+            # Use database name from settings
+            self.db = self.client[settings.MONGO_DB]
+            self.chats_collection = self.db.chats
+            self.sessions_collection = self.db.sessions
+            
+            # Verify connection
+            await self.client.admin.command('ping')
+            logger.info(f"✅ Connected to MongoDB Atlas: {settings.MONGO_DB}")
+            
+            # Create indexes
+            await self._create_indexes()
+            
+        except Exception as e:
+            logger.error(f"❌ MongoDB connection failed: {e}")
+            raise
         
     async def _create_indexes(self):
         """Create necessary indexes for optimal query performance"""
-        # Chat collection indexes
-        await self.chats_collection.create_index([("session_id", ASCENDING)])
-        await self.chats_collection.create_index([("user_id", ASCENDING)])
-        await self.chats_collection.create_index([("created_at", DESCENDING)])
-        await self.chats_collection.create_index([
-            ("session_id", ASCENDING),
-            ("created_at", ASCENDING)
-        ])
-        
-        # Session collection indexes
-        await self.sessions_collection.create_index([("session_id", ASCENDING)], unique=True)
-        await self.sessions_collection.create_index([("user_id", ASCENDING)])
-        
-        logger.info("✅ MongoDB indexes created")
+        try:
+            # Chat collection indexes
+            await self.chats_collection.create_index([("session_id", ASCENDING)])
+            await self.chats_collection.create_index([("user_id", ASCENDING)])
+            await self.chats_collection.create_index([("created_at", DESCENDING)])
+            await self.chats_collection.create_index([
+                ("session_id", ASCENDING),
+                ("created_at", ASCENDING)
+            ])
+            
+            # Session collection indexes
+            await self.sessions_collection.create_index([("session_id", ASCENDING)], unique=True)
+            await self.sessions_collection.create_index([("user_id", ASCENDING)])
+            
+            logger.info("✅ MongoDB indexes created")
+        except Exception as e:
+            logger.warning(f"Index creation warning: {e}")
         
     async def disconnect(self):
         """Close MongoDB connection"""
