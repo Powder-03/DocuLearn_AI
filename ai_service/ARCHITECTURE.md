@@ -13,7 +13,7 @@ ai_service/
 │   │       ├── __init__.py
 │   │       ├── health.py      # Health check endpoints
 │   │       ├── sessions.py    # Session management endpoints
-│   │       └── langserve.py   # LangServe integration
+│   │       └── chat.py        # Chat endpoints
 │   │
 │   ├── core/                   # Core Configuration
 │   │   ├── __init__.py
@@ -36,6 +36,7 @@ ai_service/
 │   │
 │   ├── services/               # Business Logic
 │   │   ├── __init__.py
+│   │   ├── chat_service.py    # Chat service
 │   │   └── memory.py          # Session persistence service
 │   │
 │   ├── __init__.py
@@ -74,19 +75,19 @@ ai_service/
 ## 📋 API Endpoints
 
 ### **Health & Status**
-- `GET /` - Root health check
-- `GET /health` - Detailed health status
+- `GET /api/v1/` - Root health check
+- `GET /api/v1/health` - Detailed health status
 
 ### **Session Management**
-- `POST /sessions/create` - Create new learning plan
-- `GET /sessions/{session_id}` - Get session details
-- `GET /sessions/{session_id}/lesson-plan` - Get lesson plan
-- `DELETE /sessions/{session_id}` - Delete session (soft delete)
+- `POST /api/v1/sessions/create` - Create new learning plan
+- `GET /api/v1/sessions/{session_id}` - Get session details
+- `GET /api/v1/sessions/{session_id}/lesson-plan` - Get lesson plan
+- `DELETE /api/v1/sessions/{session_id}` - Delete session (soft delete)
 
-### **LangServe (AI Chat)**
-- `POST /learn/generation/invoke` - Synchronous chat
-- `POST /learn/generation/stream` - Streaming chat
-- `GET /learn/generation/playground` - Interactive UI
+### **Chat (AI)**
+- `POST /api/v1/chat/invoke` - Synchronous chat
+- `POST /api/v1/chat/stream` - Streaming chat
+- `GET /api/v1/chat/state/{session_id}` - Get graph state
 
 ## 🔄 Request Flow
 
@@ -130,7 +131,7 @@ def test_create_plan_request_validation():
 # tests/test_api.py
 def test_create_plan_endpoint(client):
     """Test full endpoint flow."""
-    response = client.post("/sessions/create", json={...})
+    response = client.post("/api/v1/sessions/create", json={...})
     assert response.status_code == 201
 ```
 
@@ -177,7 +178,7 @@ api_router.include_router(progress.router)
 
 ### Creating a Session
 ```bash
-curl -X POST "http://localhost:8001/sessions/create" \
+curl -X POST "http://localhost:8001/api/v1/sessions/create" \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -189,11 +190,11 @@ curl -X POST "http://localhost:8001/sessions/create" \
 
 ### Getting Session Details
 ```bash
-curl "http://localhost:8001/sessions/{session_id}"
+curl "http://localhost:8001/api/v1/sessions/{session_id}"
 ```
 
 ### Interactive Playground
-Visit: `http://localhost:8001/learn/generation/playground`
+Visit: `http://localhost:8001/docs`
 
 ## 🎨 Benefits of This Structure
 
@@ -203,15 +204,15 @@ Visit: `http://localhost:8001/learn/generation/playground`
 | **Testability** | Hard to mock | Easy to test |
 | **Maintainability** | Monolithic | Modular |
 | **Onboarding** | Confusing | Clear structure |
-| **Scalability** | Limited | Easy to extend |
+| **Scalability** | Easy to extend | Easy to extend |
 | **Type Safety** | Partial | Full |
 | **Documentation** | Minimal | Self-documenting |
 
 ## 📝 Migration Notes
 
 ### Breaking Changes
-- `POST /create_plan` → `POST /sessions/create`
-- `GET /session/{id}` → `GET /sessions/{id}`
+- `POST /create_plan` → `POST /api/v1/sessions/create`
+- `GET /session/{id}` → `GET /api/v1/sessions/{id}`
 - Response format includes additional metadata
 
 ### Backward Compatibility

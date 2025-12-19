@@ -3,7 +3,7 @@ uvicorn[standard]
 mangum
 langchain
 langgraph
-langchain-groq
+langchain-google-genai
 langchain-community
 sqlalchemy
 psycopg2-binary

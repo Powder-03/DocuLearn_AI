@@ -7,18 +7,18 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str
     MONGODB_URL: str
-    GROQ_API_KEY: str
+    GOOGLE_API_KEY: str
     
     # MongoDB database name
     MONGO_DB: Optional[str] = "learning_saas_chats"
     
-    # LLM Model Configuration - Using Groq Llama 3.1 70B for both
-    PLANNING_LLM_PROVIDER: str = "groq"
-    PLANNING_LLM_MODEL: str = "llama-3.1-70b-versatile"
+    # LLM Model Configuration
+    PLANNING_LLM_PROVIDER: str = "google"
+    PLANNING_LLM_MODEL: str = "gemini-2.5-pro"
     PLANNING_LLM_TEMPERATURE: float = 0.7
     
-    TUTORING_LLM_PROVIDER: str = "groq"
-    TUTORING_LLM_MODEL: str = "llama-3.1-70b-versatile"
+    TUTORING_LLM_PROVIDER: str = "google"
+    TUTORING_LLM_MODEL: str = "gemini-2.5-pro"
     TUTORING_LLM_TEMPERATURE: float = 0.7
     
     class Config:

@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     print("📊 Cloud Infrastructure:")
     print("   - PostgreSQL: Neon Cloud")
     print("   - MongoDB: Atlas Cloud")
-    print(f"   - LLM: Groq ({settings.PLANNING_LLM_MODEL})")
+    print(f"   - LLM: Google Gemini ({settings.PLANNING_LLM_MODEL})")
     
     # Create database tables in Neon
     try:
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(
     title="DocuLearn AI - Production",
-    description="AI-powered learning with Groq Llama 3.1 70B, Neon PostgreSQL, and MongoDB Atlas",
+    description="AI-powered learning with Google Gemini, Neon PostgreSQL, and MongoDB Atlas",
     version="2.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -80,7 +80,7 @@ async def root():
         "status": "operational",
         "description": "AI-powered personalized learning microservice",
         "infrastructure": {
-            "llm_provider": "Groq",
+            "llm_provider": "Google Gemini",
             "llm_model": settings.PLANNING_LLM_MODEL,
             "database": "Neon PostgreSQL (Cloud)",
             "chat_storage": "MongoDB Atlas (Cloud)",
@@ -108,7 +108,7 @@ async def root():
             "100% Cloud Infrastructure",
             "Neon PostgreSQL (Serverless)",
             "MongoDB Atlas (Managed)",
-            "Groq LLM (Ultra-fast)",
+            "Google Gemini LLM",
             "AWS Lambda Compatible",
             "Zero local dependencies",
             "Production ready"

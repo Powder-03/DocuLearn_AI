@@ -4,7 +4,7 @@ mangum
 uvicorn
 langchain
 langgraph
-langchain-groq
+langchain-google-genai
 langchain-community
 langchain-mongodb
 sqlalchemy

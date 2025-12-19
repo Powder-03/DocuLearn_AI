@@ -17,6 +17,7 @@ class ChatService:
     
     async def process_chat_message(
         self,
+        db: Session,
         session_id: str,
         message: str
     ) -> Dict[str, Any]:
@@ -24,6 +25,7 @@ class ChatService:
         Process a chat message and return AI response.
         
         Args:
+            db: The SQLAlchemy database session.
             session_id: Session identifier
             message: User's message
             
@@ -34,7 +36,7 @@ class ChatService:
             ValueError: If session not found
         """
         # 1. Validate and get session
-        session_data = self._get_session_or_raise(session_id)
+        session_data = await self._get_session_or_raise(db, session_id)
         
         # 2. Save user message
         await self._save_user_message(session_id, session_data["user_id"], message, session_data)
@@ -64,6 +66,7 @@ class ChatService:
     
     async def stream_chat_message(
         self,
+        db: Session,
         session_id: str,
         message: str
     ) -> AsyncIterator[Dict[str, Any]]:
@@ -71,6 +74,7 @@ class ChatService:
         Stream chat message response.
         
         Args:
+            db: The SQLAlchemy database session.
             session_id: Session identifier
             message: User's message
             
@@ -79,7 +83,7 @@ class ChatService:
         """
         try:
             # 1. Validate and get session
-            session_data = self._get_session_or_raise(session_id)
+            session_data = await self._get_session_or_raise(db, session_id)
             
             # 2. Save user message
             await self._save_user_message(session_id, session_data["user_id"], message, session_data)
@@ -125,18 +129,19 @@ class ChatService:
         except Exception as e:
             yield {"event": "error", "data": f"Streaming error: {str(e)}"}
     
-    async def get_graph_state(self, session_id: str) -> Dict[str, Any]:
+    async def get_graph_state(self, session_id: str, db: Optional[Session] = None) -> Dict[str, Any]:
         """
         Get current graph state for a session.
         
         Args:
             session_id: Session identifier
+            db: The SQLAlchemy database session, required for fallback.
             
         Returns:
             Graph state dictionary
             
         Raises:
-            ValueError: If session not found
+            ValueError: If session not found or db is missing for fallback
         """
         # Try graph checkpointer first
         config = {"configurable": {"thread_id": session_id}}
@@ -154,7 +159,10 @@ class ChatService:
             )
         
         # Fallback to database
-        session_data = self._get_session_or_raise(session_id)
+        if not db:
+            raise ValueError("Database session is required for fallback state retrieval")
+            
+        session_data = await self._get_session_or_raise(db, session_id)
         
         return self._build_graph_state_response(
             session_id,
@@ -194,9 +202,13 @@ class ChatService:
     
     # ========== Private Helper Methods ==========
     
-    def _get_session_or_raise(self, session_id: str) -> Dict[str, Any]:
+    async def _get_session_or_raise(self, db: Session, session_id: str) -> Dict[str, Any]:
         """Get session data or raise ValueError."""
-        session_data = get_session_state(session_id)
+        from fastapi.concurrency import run_in_threadpool
+        
+        # Run the synchronous get_session_state in a thread pool
+        session_data = await run_in_threadpool(get_session_state, db=db, session_id=session_id)
+        
         if not session_data:
             raise ValueError("Session not found")
         return session_data

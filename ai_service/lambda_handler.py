@@ -1,9 +1,17 @@
 """
-AWS Lambda handler for DocuLearn AI Service
-Uses Mangum to wrap FastAPI for Lambda
+AWS Lambda handler for the FastAPI application.
+
+This script creates an AWS Lambda handler function that wraps the main FastAPI
+application using Mangum, an adapter for running ASGI applications in a
+serverless environment.
 """
+import os
 from mangum import Mangum
 from app.main import app
 
-# Create Lambda handler
-handler = Mangum(app, lifespan="off")  # Use "off" for Lambda cold starts
+# Set a stage prefix if running on a custom domain
+stage = os.environ.get("STAGE", None)
+root_path = f"/{stage}" if stage else "/"
+
+# Wrap the FastAPI app with Mangum
+handler = Mangum(app, lifespan="off")

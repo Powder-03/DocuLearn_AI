@@ -133,7 +133,6 @@ MONGODB_URL=mongodb://admin:supersecret@mongodb:27017/learning_saas_chats?authSo
 
 # AI API Keys
 GOOGLE_API_KEY=your_google_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 ---

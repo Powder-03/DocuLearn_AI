@@ -7,11 +7,12 @@ from app.db.session import SessionLocal
 from app.db.models import LearningSession
 
 
-def get_session_state(session_id: str) -> Dict[str, Any]:
+def get_session_state(db: Session, session_id: str) -> Dict[str, Any]:
     """
     Retrieve the current state of a learning session from the database.
     
     Args:
+        db: The SQLAlchemy database session.
         session_id: UUID string identifying the session
         
     Returns:
@@ -20,7 +21,6 @@ def get_session_state(session_id: str) -> Dict[str, Any]:
     Raises:
         ValueError: If session_id is not found
     """
-    db: Session = SessionLocal()
     try:
         # Convert session_id to UUID if needed
         try:
@@ -56,22 +56,23 @@ def get_session_state(session_id: str) -> Dict[str, Any]:
         
         return state
         
-    finally:
-        db.close()
+    except Exception as e:
+        # Re-raise exceptions to be handled by the caller
+        raise e
 
 
-def update_session_state(session_id: str, updates: Dict[str, Any]) -> None:
+def update_session_state(db: Session, session_id: str, updates: Dict[str, Any]) -> None:
     """
     Update specific fields of a learning session in the database.
     
     Args:
+        db: The SQLAlchemy database session.
         session_id: UUID string identifying the session
         updates: Dictionary of fields to update
         
     Raises:
         ValueError: If session_id is not found
     """
-    db: Session = SessionLocal()
     try:
         # Convert session_id to UUID if needed
         try:
@@ -100,11 +101,13 @@ def update_session_state(session_id: str, updates: Dict[str, Any]) -> None:
         # Commit changes
         db.commit()
         
-    finally:
-        db.close()
+    except Exception as e:
+        db.rollback()
+        raise e
 
 
 def create_session(
+    db: Session,
     session_id: str,
     user_id: str,
     topic: str,
@@ -115,6 +118,7 @@ def create_session(
     Create a new learning session in the database.
     
     Args:
+        db: The SQLAlchemy database session.
         session_id: UUID string for the new session
         user_id: UUID string or regular string identifying the user
         topic: The learning topic
@@ -124,7 +128,6 @@ def create_session(
     Returns:
         Dictionary containing the created session state
     """
-    db: Session = SessionLocal()
     try:
         # Convert user_id to UUID if it's not already one
         try:
@@ -142,7 +145,9 @@ def create_session(
             lesson_plan=None,  # Will be created by plan_generator_node
             chat_history=[],
             memory_summary=None,
-            current_day=1
+            current_day=1,
+            total_days=total_days,
+            time_per_day=time_per_day
         )
         
         db.add(new_session)
@@ -161,5 +166,6 @@ def create_session(
             "chat_history": []
         }
         
-    finally:
-        db.close()
+    except Exception as e:
+        db.rollback()
+        raise e

@@ -89,7 +89,7 @@ A **production-ready AI tutoring microservice** that generates personalized lear
 │  │       ┌────▼────┐     ┌────────┐                  │  │
 │  │       │  Plan   │────►│ Tutor  │───► Response     │  │
 │  │       │Generator│     │  Node  │                   │  │
-│  │       │(Gemini) │     │(GPT-4o)│                   │  │
+│  │       │(Gemini) │     │(Gemini)│                   │  │
 │  │       └─────────┘     └────────┘                   │  │
 │  └───────────────────────────────────────────────────┘  │
 └──────────────┬─────────────────────┬────────────────────┘
@@ -108,7 +108,7 @@ A **production-ready AI tutoring microservice** that generates personalized lear
 |-------|-----------|---------|
 | **API** | FastAPI 0.104+ | High-performance async REST |
 | **AI Orchestration** | LangGraph + LangChain | Multi-step AI workflows |
-| **LLMs** | Gemini 2.0 Flash + GPT-4o | Planning + Tutoring |
+| **LLMs** | Google Gemini | Planning + Tutoring |
 | **Session DB** | PostgreSQL 16 | Structured session data |
 | **Chat DB** | MongoDB 8.0 | Scalable chat history |
 | **Deployment** | Docker Compose | Service orchestration |
@@ -298,7 +298,6 @@ pydantic-settings==2.1.0      # Settings management
 langchain==0.1.0              # LLM framework
 langgraph==0.0.20             # Graph-based workflows
 langchain-google-genai        # Gemini integration
-langchain-openai              # GPT-4 integration
 langchain-mongodb             # MongoDB integration
 
 # Databases
@@ -495,7 +494,7 @@ class GenerationGraphState(TypedDict):
 ┌─────────────┐   ┌─────────────┐
 │    Plan     │   │    Tutor    │
 │  Generator  │──►│    Node     │
-│  (Gemini)   │   │  (GPT-4o)   │
+│  (Gemini)   │   │   (Gemini)  │
 └─────────────┘   └──────┬──────┘
                          │
                          ▼
@@ -508,7 +507,7 @@ class GenerationGraphState(TypedDict):
 
 **Trigger:** First message in new session (no lesson plan exists)
 
-**LLM:** Google Gemini 2.0 Flash
+**LLM:** Google Gemini
 - Fast (3-5 seconds)
 - Cost-effective
 - Good at structured output
@@ -541,7 +540,7 @@ class GenerationGraphState(TypedDict):
 
 **Trigger:** All subsequent messages (or after plan generation)
 
-**LLM:** OpenAI GPT-4o
+**LLM:** Google Gemini
 - Superior reasoning
 - Better at conversational teaching
 - Socratic method capability
@@ -583,9 +582,8 @@ def should_plan(state: GenerationGraphState) -> str:
 
 - Docker Desktop installed
 - Python 3.11+ (for local development)
-- API Keys:
+- API Key:
   - Google AI API key (for Gemini)
-  - OpenAI API key (for GPT-4)
 
 ### Quick Start
 
@@ -607,7 +605,6 @@ MONGO_DB=learning_saas_chats
 MONGODB_URL=mongodb://admin:supersecret@mongodb:27017/learning_saas_chats?authSource=admin
 
 GOOGLE_API_KEY=your_google_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
 EOF
 
 # 3. Start all services
@@ -716,7 +713,6 @@ MONGO_DB=learning_saas_chats
 
 # AI APIs
 GOOGLE_API_KEY=your_key
-OPENAI_API_KEY=your_key
 ```
 
 ### Production Deployment
@@ -749,7 +745,7 @@ docker compose logs -f ai_service
 | Save Message (MongoDB) | 8ms | <20ms | ✅ Exceeds |
 | Get Messages (MongoDB) | 12ms | <50ms | ✅ Exceeds |
 | Plan Generation (Gemini) | 3-5s | <10s | ✅ Exceeds |
-| Tutor Response (GPT-4o) | 2-4s | <10s | ✅ Exceeds |
+| Tutor Response (Gemini) | 2-4s | <10s | ✅ Exceeds |
 | Streaming Token | 50ms | <100ms | ✅ Exceeds |
 
 ### Capacity Estimates
@@ -826,17 +822,15 @@ docker compose logs -f ai_service
 - Easier to test with curl
 - Unidirectional streaming sufficient
 
-### 6. Dual LLM Strategy
+### 6. Single LLM Strategy
 
-**Decision:** Gemini for planning + GPT-4o for tutoring
+**Decision:** Google Gemini for all tasks
 
 **Rationale:**
-- Cost optimization (Gemini cheaper for structured output)
-- Speed (Gemini faster at 3s vs 5s)
-- Quality (GPT-4o better at conversational teaching)
-- Reliability (fallback to different providers)
-
-**Cost Savings:** 38% cheaper than GPT-4o only
+- Cost optimization
+- Speed
+- Reliability
+- Simplified architecture
 
 ---
 
@@ -916,7 +910,7 @@ For issues or questions:
 
 ### Business Value
 
-- 💰 **38% Cost Savings** - Dual LLM strategy
+- 💰 **Cost Savings** - Single LLM strategy
 - 📈 **Horizontally Scalable** - Supports 10K+ users
 - 🔒 **Dual Database Redundancy** - High availability
 - 🚀 **Real-time Streaming** - Better UX
@@ -972,7 +966,7 @@ The service achieves:
 - **Scalability:** 10K+ concurrent users
 - **Reliability:** Dual database redundancy
 - **Maintainability:** Clear separation of concerns
-- **Cost-efficiency:** 38% savings with dual LLM
+- **Cost-efficiency:** Single LLM
 
 **Ready for integration with frontend and deployment to production.**
 

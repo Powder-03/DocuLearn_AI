@@ -4,7 +4,7 @@ A standalone AI microservice for personalized learning plan generation and tutor
 
 ## Features
 
-- 🧠 **Dual-Stage AI Pipeline**: Plan generation (Gemini) + Interactive tutoring (GPT-4o)
+- 🧠 **AI Pipeline**: Plan generation and interactive tutoring with Google Gemini.
 - 💾 **PostgreSQL Persistence**: All session state, chat history, and plans stored in database
 - 🔄 **Stateful LangGraph**: Two-node graph with conditional routing
 - 🚀 **LangServe Integration**: RESTful API with streaming support
@@ -25,7 +25,7 @@ Entry Point (conditional)
 
 - **API Framework**: FastAPI + LangServe
 - **AI Orchestration**: LangGraph + LangChain
-- **LLMs**: Google Gemini (planning) + OpenAI GPT-4o (tutoring)
+- **LLMs**: Google Gemini
 - **Database**: PostgreSQL with SQLAlchemy
 - **Containerization**: Docker + Docker Compose
 
@@ -34,7 +34,7 @@ Entry Point (conditional)
 ### Prerequisites
 
 - Docker and Docker Compose
-- API keys for Google Gemini and OpenAI
+- API key for Google Gemini
 
 ### Installation
 
@@ -44,10 +44,9 @@ Entry Point (conditional)
    ```
 
 2. **Configure environment variables:**
-   Edit `.env` file with your API keys:
+   Edit `.env` file with your API key:
    ```env
    GOOGLE_API_KEY=your_actual_google_api_key
-   OPENAI_API_KEY=your_actual_openai_api_key
    ```
 
 3. **Build and start services:**
@@ -65,7 +64,7 @@ Entry Point (conditional)
 ### 1. Create a Learning Plan
 
 ```bash
-curl -X POST "http://localhost:8001/create_plan" \
+curl -X POST "http://localhost:8001/api/v1/sessions/create" \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -85,12 +84,12 @@ Response:
 
 ### 2. Chat with the Tutor
 
-Use the LangServe endpoint at `/learn/generation` with the returned `session_id`.
+Use the chat endpoint at `/api/v1/chat/invoke` with the returned `session_id`.
 
 ### 3. Check Session Status
 
 ```bash
-curl "http://localhost:8001/session/987fcdeb-51a2-43f8-9c3d-0123456789ab"
+curl "http://localhost:8001/api/v1/sessions/987fcdeb-51a2-43f8-9c3d-0123456789ab"
 ```
 
 ## Project Structure
@@ -121,14 +120,11 @@ ai_service/
 ### Core Endpoints
 
 - `GET /` - Health check
-- `POST /create_plan` - Initialize a new learning session
-- `GET /session/{session_id}` - Get session status
-
-### LangServe Endpoints
-
-- `POST /learn/generation/invoke` - Synchronous invocation
-- `POST /learn/generation/stream` - Streaming responses
-- `GET /learn/generation/playground` - Interactive playground
+- `POST /api/v1/sessions/create` - Initialize a new learning session
+- `GET /api/v1/sessions/{session_id}` - Get session status
+- `POST /api/v1/chat/invoke` - Synchronous invocation
+- `POST /api/v1/chat/stream` - Streaming responses
+- `GET /api/v1/chat/state/{session_id}` - Get chat state
 
 ## Database Schema
 
@@ -146,6 +142,8 @@ ai_service/
 | current_day | Integer | Current day in the plan |
 | created_at | DateTime | Creation timestamp |
 | updated_at | DateTime | Last update timestamp |
+| total_days | INTEGER | Total number of days for the learning plan. |
+| time_per_day | VARCHAR | Time allocated per day for learning. |
 
 ## Development
 
@@ -178,7 +176,6 @@ Access the interactive API docs at http://localhost:8001/docs to test all endpoi
 |----------|-------------|----------|
 | DATABASE_URL | PostgreSQL connection string | Yes |
 | GOOGLE_API_KEY | Google Gemini API key | Yes |
-| OPENAI_API_KEY | OpenAI API key | Yes |
 | POSTGRES_USER | Database username | Yes (Docker) |
 | POSTGRES_PASSWORD | Database password | Yes (Docker) |
 | POSTGRES_DB | Database name | Yes (Docker) |

@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.db.models import LearningSession
-from app.db.session import get_db
 from app.services.memory import create_session as create_session_state
 
 
@@ -16,6 +15,7 @@ class SessionService:
     
     def create_session(
         self,
+        db: Session,
         user_id: str,
         topic: str,
         total_days: int = 7,
@@ -25,6 +25,7 @@ class SessionService:
         Create a new learning session with state management
         
         Args:
+            db: The SQLAlchemy database session.
             user_id: User identifier
             topic: Learning topic
             total_days: Total days for the learning plan
@@ -54,6 +55,7 @@ class SessionService:
             
             # Create session state (PostgreSQL + in-memory)
             create_session_state(
+                db=db,
                 session_id=session_id,
                 user_id=user_id,
                 topic=topic,
@@ -80,11 +82,12 @@ class SessionService:
             raise RuntimeError(f"Failed to create session: {str(e)}")
     
     
-    def get_session(self, session_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_session(self, db: Session, session_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Get session details by ID
         
         Args:
+            db: The SQLAlchemy database session.
             session_id: Session identifier
             user_id: Optional user ID for authorization check
             
@@ -94,40 +97,38 @@ class SessionService:
         Raises:
             PermissionError: If user_id provided and doesn't match session owner
         """
-        db: Session = next(get_db())
+        session = db.query(LearningSession).filter(
+            LearningSession.session_id == session_id
+        ).first()
         
-        try:
-            session = db.query(LearningSession).filter(
-                LearningSession.session_id == session_id
-            ).first()
-            
-            if not session:
-                return None
-            
-            # Authorization check if user_id provided
-            if user_id and str(session.user_id) != user_id:
-                raise PermissionError("You don't have permission to access this session")
-            
-            # Count messages in chat history
-            message_count = len(session.chat_history) if session.chat_history else 0
-            
-            return {
-                "session_id": str(session.session_id),
-                "user_id": str(session.user_id),
-                "topic": session.topic,
-                "total_days": session.total_days if hasattr(session, 'total_days') else (session.lesson_plan.get('total_days', 7) if session.lesson_plan else 7),
-                "current_day": session.current_day,
-                "has_lesson_plan": session.lesson_plan is not None,
-                "message_count": message_count,
-                "created_at": session.created_at.isoformat() if session.created_at else None
-            }
-            
-        finally:
-            db.close()
+        if not session:
+            return None
+        
+        # Authorization check if user_id provided
+        if user_id and str(session.user_id) != user_id:
+            raise PermissionError("You don't have permission to access this session")
+        
+        # Count messages in chat history
+        # This relationship is not loaded by default, it will trigger a lazy load
+        # For high performance, consider a separate query or a back-populating counter
+        # message_count = len(session.chat_history) if session.chat_history else 0
+        message_count = 0 # Placeholder to avoid N+1 query problem in a sync function
+        
+        return {
+            "session_id": str(session.session_id),
+            "user_id": str(session.user_id),
+            "topic": session.topic,
+            "total_days": session.total_days if hasattr(session, 'total_days') else (session.lesson_plan.get('total_days', 7) if session.lesson_plan else 7),
+            "current_day": session.current_day,
+            "has_lesson_plan": session.lesson_plan is not None,
+            "message_count": message_count,
+            "created_at": session.created_at.isoformat() if session.created_at else None
+        }
     
     
     def list_user_sessions(
         self,
+        db: Session,
         user_id: str,
         skip: int = 0,
         limit: int = 100,
@@ -137,6 +138,7 @@ class SessionService:
         List all sessions for a user
         
         Args:
+            db: The SQLAlchemy database session.
             user_id: User identifier
             skip: Number of records to skip (pagination)
             limit: Maximum number of records to return
@@ -145,60 +147,55 @@ class SessionService:
         Returns:
             Dict with sessions list and metadata
         """
-        db: Session = next(get_db())
-        
+        # Convert user_id to UUID if needed
+        import uuid
         try:
-            # Convert user_id to UUID if needed
-            import uuid
-            try:
-                user_uuid = uuid.UUID(user_id)
-            except (ValueError, AttributeError):
-                # If user_id is not a valid UUID, generate one based on the string
-                user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, user_id)
-            
-            query = db.query(LearningSession).filter(
-                LearningSession.user_id == user_uuid
+            user_uuid = uuid.UUID(user_id)
+        except (ValueError, AttributeError):
+            # If user_id is not a valid UUID, generate one based on the string
+            user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, user_id)
+        
+        query = db.query(LearningSession).filter(
+            LearningSession.user_id == user_uuid
+        )
+        
+        # Filter completed sessions if needed
+        if not include_completed:
+            query = query.filter(
+                LearningSession.current_day < LearningSession.total_days
             )
-            
-            # Filter completed sessions if needed
-            if not include_completed:
-                query = query.filter(
-                    LearningSession.current_day < LearningSession.total_days
-                )
-            
-            # Get total count
-            total = query.count()
-            
-            # Apply pagination and ordering
-            sessions = query.order_by(
-                LearningSession.created_at.desc()
-            ).offset(skip).limit(limit).all()
-            
-            return {
-                "total": total,
-                "skip": skip,
-                "limit": limit,
-                "sessions": [
-                    {
-                        "session_id": str(s.session_id),
-                        "topic": s.topic,
-                        "current_day": s.current_day,
-                        "total_days": s.total_days,
-                        "time_per_day": s.time_per_day,
-                        "is_completed": s.current_day >= s.total_days,
-                        "created_at": s.created_at.isoformat() if s.created_at else None,
-                        "updated_at": s.updated_at.isoformat() if s.updated_at else None
-                    }
-                    for s in sessions
-                ]
-            }
-            
-        finally:
-            db.close()
+        
+        # Get total count
+        total = query.count()
+        
+        # Apply pagination and ordering
+        sessions = query.order_by(
+            LearningSession.created_at.desc()
+        ).offset(skip).limit(limit).all()
+        
+        return {
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "sessions": [
+                {
+                    "session_id": str(s.session_id),
+                    "topic": s.topic,
+                    "current_day": s.current_day,
+                    "total_days": s.total_days,
+                    "time_per_day": s.time_per_day,
+                    "is_completed": s.current_day >= s.total_days,
+                    "created_at": s.created_at.isoformat() if s.created_at else None,
+                    "updated_at": s.updated_at.isoformat() if s.updated_at else None
+                }
+                for s in sessions
+            ]
+        }
     
     
     def update_session_progress(
         self,
+        db: Session,
         session_id: str,
         user_id: Optional[str] = None,
         increment_day: bool = True
@@ -207,6 +204,7 @@ class SessionService:
         Update session progress (advance to next day)
         
         Args:
+            db: The SQLAlchemy database session.
             session_id: Session identifier
             user_id: Optional user ID for authorization
             increment_day: Whether to increment the current day
@@ -219,8 +217,6 @@ class SessionService:
             PermissionError: If user doesn't own the session
             RuntimeError: If session is already completed
         """
-        db: Session = next(get_db())
-        
         try:
             session = db.query(LearningSession).filter(
                 LearningSession.session_id == session_id
@@ -254,12 +250,11 @@ class SessionService:
         except Exception as e:
             db.rollback()
             raise
-        finally:
-            db.close()
     
     
     def delete_session(
         self,
+        db: Session,
         session_id: str,
         user_id: Optional[str] = None
     ) -> Dict[str, str]:
@@ -267,6 +262,7 @@ class SessionService:
         Delete a session and all associated data
         
         Args:
+            db: The SQLAlchemy database session.
             session_id: Session identifier
             user_id: Optional user ID for authorization
             
@@ -277,8 +273,6 @@ class SessionService:
             ValueError: If session not found
             PermissionError: If user doesn't own the session
         """
-        db: Session = next(get_db())
-        
         try:
             session = db.query(LearningSession).filter(
                 LearningSession.session_id == session_id
@@ -305,50 +299,43 @@ class SessionService:
         except Exception as e:
             db.rollback()
             raise
-        finally:
-            db.close()
     
     
-    def get_session_statistics(self, user_id: str) -> Dict[str, Any]:
+    def get_session_statistics(self, db: Session, user_id: str) -> Dict[str, Any]:
         """
         Get learning statistics for a user
         
         Args:
+            db: The SQLAlchemy database session.
             user_id: User identifier
             
         Returns:
             Statistics about user's learning sessions
         """
-        db: Session = next(get_db())
+        sessions = db.query(LearningSession).filter(
+            LearningSession.user_id == user_id
+        ).all()
         
-        try:
-            sessions = db.query(LearningSession).filter(
-                LearningSession.user_id == user_id
-            ).all()
-            
-            total_sessions = len(sessions)
-            completed_sessions = sum(1 for s in sessions if s.current_day >= s.total_days)
-            in_progress_sessions = total_sessions - completed_sessions
-            
-            total_days_planned = sum(s.total_days for s in sessions)
-            total_days_completed = sum(
-                min(s.current_day, s.total_days) for s in sessions
+        total_sessions = len(sessions)
+        completed_sessions = sum(1 for s in sessions if s.current_day >= s.total_days)
+        in_progress_sessions = total_sessions - completed_sessions
+        
+        total_days_planned = sum(s.total_days for s in sessions)
+        total_days_completed = sum(
+            min(s.current_day, s.total_days) for s in sessions
+        )
+        
+        return {
+            "total_sessions": total_sessions,
+            "completed_sessions": completed_sessions,
+            "in_progress_sessions": in_progress_sessions,
+            "total_days_planned": total_days_planned,
+            "total_days_completed": total_days_completed,
+            "completion_rate": (
+                (completed_sessions / total_sessions * 100) 
+                if total_sessions > 0 else 0
             )
-            
-            return {
-                "total_sessions": total_sessions,
-                "completed_sessions": completed_sessions,
-                "in_progress_sessions": in_progress_sessions,
-                "total_days_planned": total_days_planned,
-                "total_days_completed": total_days_completed,
-                "completion_rate": (
-                    (completed_sessions / total_sessions * 100) 
-                    if total_sessions > 0 else 0
-                )
-            }
-            
-        finally:
-            db.close()
+        }
 
 
 # Singleton instance

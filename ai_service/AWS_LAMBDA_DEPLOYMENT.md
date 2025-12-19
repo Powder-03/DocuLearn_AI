@@ -75,7 +75,7 @@ Globals:
       Variables:
         DATABASE_URL: {{resolve:ssm:/doculearn/database_url}}
         MONGODB_URL: {{resolve:ssm:/doculearn/mongodb_url}}
-        GROQ_API_KEY: {{resolve:ssm:/doculearn/groq_api_key}}
+        GOOGLE_API_KEY: {{resolve:ssm:/doculearn/google_api_key}}
 
 Resources:
   DocuLearnApi:
@@ -97,7 +97,7 @@ Deploy:
 # Store secrets in AWS Systems Manager
 aws ssm put-parameter --name /doculearn/database_url --value "postgresql://..." --type SecureString
 aws ssm put-parameter --name /doculearn/mongodb_url --value "mongodb+srv://..." --type SecureString
-aws ssm put-parameter --name /doculearn/groq_api_key --value "gsk_..." --type SecureString
+aws ssm put-parameter --name /doculearn/google_api_key --value "your_google_api_key_here" --type SecureString
 
 # Build and deploy
 sam build
@@ -124,7 +124,7 @@ aws lambda create-function \
   --zip-file fileb://../deployment.zip \
   --timeout 30 \
   --memory-size 1024 \
-  --environment Variables="{DATABASE_URL=postgresql://...,MONGODB_URL=mongodb+srv://...,GROQ_API_KEY=gsk_...}"
+  --environment Variables="{DATABASE_URL=postgresql://...,MONGODB_URL=mongodb+srv://...,GOOGLE_API_KEY=your_google_api_key_here}"
 
 # Create API Gateway
 aws apigatewayv2 create-api \
@@ -184,7 +184,7 @@ aws lambda update-function-configuration \
   --environment Variables="{
     DATABASE_URL=<YOUR_NEON_DATABASE_URL>,
     MONGODB_URL=<YOUR_MONGODB_ATLAS_URL>,
-    GROQ_API_KEY=<YOUR_GROQ_API_KEY>,
+    GOOGLE_API_KEY=<YOUR_GOOGLE_API_KEY>,
     MONGO_DB=learning_saas_chats
   }"
 ```

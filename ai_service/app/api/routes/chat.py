@@ -5,6 +5,7 @@ Thin API layer - delegates all business logic to chat_service
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sse_starlette.sse import EventSourceResponse
 import json
+from sqlalchemy.orm import Session
 
 from app.schemas.session import (
     ChatRequest, 
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 @router.post("/invoke", response_model=ChatResponse)
 async def chat_invoke(
     request: ChatRequest,
-    db = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     Send a message and get AI tutor's response (non-streaming).
@@ -38,6 +39,7 @@ async def chat_invoke(
     """
     try:
         result = await chat_service.process_chat_message(
+            db=db,
             session_id=request.session_id,
             message=request.message
         )
@@ -51,7 +53,7 @@ async def chat_invoke(
 
 
 @router.post("/stream")
-async def chat_stream(request: StreamChatRequest):
+async def chat_stream(request: StreamChatRequest, db: Session = Depends(get_db)):
     """
     Send a message and stream AI response in real-time using Server-Sent Events.
     
@@ -64,6 +66,7 @@ async def chat_stream(request: StreamChatRequest):
     """
     async def event_generator():
         async for chunk in chat_service.stream_chat_message(
+            db=db,
             session_id=request.session_id,
             message=request.message
         ):
@@ -73,7 +76,7 @@ async def chat_stream(request: StreamChatRequest):
 
 
 @router.get("/state/{session_id}", response_model=GraphStateResponse)
-async def get_graph_state(session_id: str):
+async def get_graph_state(session_id: str, db: Session = Depends(get_db)):
     """
     Get the current state of the LangGraph for a session.
     
@@ -85,7 +88,7 @@ async def get_graph_state(session_id: str):
     - Analytics dashboard
     """
     try:
-        state_data = await chat_service.get_graph_state(session_id)
+        state_data = await chat_service.get_graph_state(session_id, db=db)
         return GraphStateResponse(**state_data)
         
     except ValueError as e:

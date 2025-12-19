@@ -249,7 +249,7 @@ app/
 │   └── routes/
 │       ├── health.py           # ❤️ Health checks
 │       ├── sessions.py         # 📚 Sessions
-│       └── langserve.py        # 🧠 LangServe
+│       └── chat.py             # 🧠 Chat
 ├── schemas/
 │   └── session.py              # 📋 Pydantic models
 ├── db/
