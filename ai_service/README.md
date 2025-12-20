@@ -145,6 +145,12 @@ ai_service/
 | total_days | INTEGER | Total number of days for the learning plan. |
 | time_per_day | VARCHAR | Time allocated per day for learning. |
 
+## Deployment
+
+This service is designed to be deployed on **Google Cloud Run**.
+
+For detailed deployment instructions, please refer to [GCP_DEPLOYMENT.md](GCP_DEPLOYMENT.md).
+
 ## Development
 
 ### Running Locally (without Docker)

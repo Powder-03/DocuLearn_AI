@@ -1,5 +1,5 @@
 # DocuLearn AI - Google Cloud Run Deployment Script
-# Automates the steps in GCP_CLOUD_RUN_DEPLOYMENT.md
+# Automates the steps in GCP_DEPLOYMENT.md
 
 Write-Host "🚀 DocuLearn AI - Google Cloud Run Deployment" -ForegroundColor Green
 Write-Host ""
