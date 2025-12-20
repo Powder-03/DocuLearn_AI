@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+langchain
+langgraph
+langchain-google-genai
+langchain-community
+sqlalchemy
+psycopg2-binary
+alembic
+pymongo
+motor
+python-dotenv
+pydantic-settings
+sse-starlette
+httpx
