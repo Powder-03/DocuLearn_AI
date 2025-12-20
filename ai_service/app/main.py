@@ -12,6 +12,9 @@ from app.db.session import engine
 from app.api.router import api_router
 from app.services.mongodb import mongodb_service
 
+# Debug log to verify app loading
+print("🔍 Loading DocuLearn AI Service module...")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -124,7 +127,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8080,
         reload=True,
         log_level="info"
     )
