@@ -1,7 +1,7 @@
 steps:
   # 1. Install dependencies & Run Migrations
   # We use a python image to run alembic against the live database
-  - name: 'python:3.11-slim'
+  - name: 'python:3.11'
     dir: 'ai_service'
     entrypoint: 'bash'
     args:
