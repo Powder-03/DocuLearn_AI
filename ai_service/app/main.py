@@ -27,14 +27,8 @@ async def lifespan(app: FastAPI):
     print("   - MongoDB: Atlas Cloud")
     print(f"   - LLM: Google Gemini ({settings.PLANNING_LLM_MODEL})")
     
-    # Connect to MongoDB Atlas
-    try:
-        await mongodb_service.connect()
-        print("✅ MongoDB Atlas connected")
-    except Exception as e:
-        print(f"❌ MongoDB Atlas connection failed: {e}")
-        # Don't crash the app on DB connection failure, so we can see logs in Cloud Run
-        # raise
+    # MongoDB connection is now handled lazily by the service itself
+    # on the first request that needs it. This speeds up startup.
     
     print("✅ DocuLearn AI Service ready for production!")
     
