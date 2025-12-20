@@ -77,7 +77,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "Step 4: Deploying to Cloud Run..." -ForegroundColor Cyan
 
-gcloud run deploy $SERVICE_NAME --image $IMAGE_URI --platform managed --region $REGION --allow-unauthenticated --port 8080 --startup-probe="timeout-seconds=600,failure-threshold=3" --update-secrets="DATABASE_URL=doculearn-database-url:latest,MONGODB_URL=doculearn-mongodb-url:latest,GOOGLE_API_KEY=doculearn-google-api-key:latest" --set-env-vars "PLANNING_LLM_MODEL=gemini-2.5-pro,TUTORING_LLM_MODEL=gemini-2.5-flash"
+gcloud run deploy $SERVICE_NAME --image $IMAGE_URI --platform managed --region $REGION --allow-unauthenticated --port 8080 --update-secrets="DATABASE_URL=doculearn-database-url:latest,MONGODB_URL=doculearn-mongodb-url:latest,GOOGLE_API_KEY=doculearn-google-api-key:latest" --set-env-vars "PLANNING_LLM_MODEL=gemini-2.5-pro,TUTORING_LLM_MODEL=gemini-2.5-flash"
 if ($LASTEXITCODE -ne 0) { 
     Write-Host "❌ Deployment failed." -ForegroundColor Red
     exit 1 
