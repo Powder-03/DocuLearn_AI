@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import Optional
+import urllib.parse
 
 
 class Settings(BaseSettings):
@@ -24,6 +26,23 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def clean_database_url(cls, v: str) -> str:
+        """Clean database URL to remove unsupported parameters."""
+        if not v:
+            return v
+        try:
+            parsed = urllib.parse.urlparse(v)
+            query = urllib.parse.parse_qs(parsed.query)
+            # Remove parameters that cause issues with psycopg2 in some environments
+            query.pop('channel_binding', None)
+            query.pop('sslmode', None)
+            new_query = urllib.parse.urlencode(query, doseq=True)
+            return urllib.parse.urlunparse(parsed._replace(query=new_query))
+        except Exception:
+            return v
 
 
 # Create a global settings instance

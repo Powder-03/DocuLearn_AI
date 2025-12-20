@@ -1,6 +1,8 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
