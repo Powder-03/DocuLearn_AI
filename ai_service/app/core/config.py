@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import field_validator, ValidationError
 from typing import Optional
+import sys
 
 
 class Settings(BaseSettings):
@@ -36,4 +37,10 @@ class Settings(BaseSettings):
 
 
 # Create a global settings instance
-settings = Settings()
+try:
+    settings = Settings()
+except ValidationError as e:
+    print("❌ FATAL: Missing or invalid environment variables. Check your secrets in Google Cloud.", file=sys.stderr)
+    print(e, file=sys.stderr)
+    # Exit with a non-zero status code to make the crash obvious in logs
+    sys.exit(1)
