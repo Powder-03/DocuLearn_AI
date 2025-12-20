@@ -3,7 +3,6 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 import os
 import sys
-import urllib.parse
 
 # Add the parent directory to the path so we can import our app
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,17 +33,7 @@ def get_url():
     # First, check for the full connection string (used by Cloud Run & Neon)
     database_url = os.getenv("DATABASE_URL")
     if database_url:
-        # Fix: Parse URL to safely remove unsupported parameters
-        try:
-            parsed = urllib.parse.urlparse(database_url)
-            query = urllib.parse.parse_qs(parsed.query)
-            # Remove parameters that cause issues in the build environment
-            query.pop('channel_binding', None)
-            query.pop('sslmode', None) # Let driver negotiate (defaults to prefer)
-            new_query = urllib.parse.urlencode(query, doseq=True)
-            return urllib.parse.urlunparse(parsed._replace(query=new_query))
-        except Exception:
-            return database_url
+        return database_url
         
     user = os.getenv("POSTGRES_USER", "doculearn")
     password = os.getenv("POSTGRES_PASSWORD", "doculearn_pass")

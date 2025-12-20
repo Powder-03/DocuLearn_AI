@@ -19,14 +19,14 @@ async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting DocuLearn AI Service...")
     print("📊 Cloud Infrastructure:")
-    print("   - PostgreSQL: Neon Cloud")
+    print("   - PostgreSQL: Google Cloud SQL")
     print("   - MongoDB: Atlas Cloud")
     print(f"   - LLM: Google Gemini ({settings.PLANNING_LLM_MODEL})")
     
-    # Create database tables in Neon
+    # Create database tables
     try:
         Base.metadata.create_all(bind=engine)
-        print("✅ Neon PostgreSQL tables created/verified")
+        print("✅ PostgreSQL tables created/verified")
     except Exception as e:
         print(f"⚠️  PostgreSQL setup warning: {e}")
     
