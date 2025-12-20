@@ -97,7 +97,7 @@ gcloud run deploy doculearn-ai-service \
   --platform=managed \
   --region=us-central1 \
   --allow-unauthenticated \
-  --port=8001 \
+  --port=8080 \
   --update-secrets=DATABASE_URL=doculearn-database-url:latest \
   --update-secrets=MONGODB_URL=doculearn-mongodb-url:latest \
   --update-secrets=GOOGLE_API_KEY=doculearn-google-api-key:latest \
