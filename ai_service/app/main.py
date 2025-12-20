@@ -4,6 +4,7 @@ Clean, modular structure with async REST API
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
@@ -28,7 +29,8 @@ async def lifespan(app: FastAPI):
     
     # Create database tables
     try:
-        Base.metadata.create_all(bind=engine)
+        # Run blocking I/O in a thread pool to avoid blocking the event loop
+        await run_in_threadpool(Base.metadata.create_all, bind=engine)
         print("✅ PostgreSQL tables created/verified")
     except Exception as e:
         print(f"⚠️  PostgreSQL setup warning: {e}")
