@@ -30,6 +30,11 @@ target_metadata = Base.metadata
 # Override sqlalchemy.url with environment variable
 def get_url():
     """Get database URL from environment variables"""
+    # First, check for the full connection string (used by Cloud Run & Neon)
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return database_url
+        
     user = os.getenv("POSTGRES_USER", "doculearn")
     password = os.getenv("POSTGRES_PASSWORD", "doculearn_pass")
     host = os.getenv("POSTGRES_HOST", "localhost")

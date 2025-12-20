@@ -1,0 +1,49 @@
+steps:
+  # 1. Install dependencies & Run Migrations
+  # We use a python image to run alembic against the live database
+  - name: 'python:3.11-slim'
+    dir: 'ai_service'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r requirements.txt
+        python -m alembic upgrade head
+    secretEnv: ['DATABASE_URL']
+
+  # 2. Build Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: 'ai_service'
+    args: ['build', '-t', '$_IMAGE_URI', '.']
+
+  # 3. Push Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_IMAGE_URI']
+
+  # 4. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '$_SERVICE_NAME'
+      - '--image'
+      - '$_IMAGE_URI'
+      - '--region'
+      - '$_REGION'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--update-secrets=DATABASE_URL=doculearn-database-url:latest,MONGODB_URL=doculearn-mongodb-url:latest,GOOGLE_API_KEY=doculearn-google-api-key:latest'
+      - '--set-env-vars=PLANNING_LLM_MODEL=gemini-2.5-pro,TUTORING_LLM_MODEL=gemini-2.5-flash'
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE_NAME: doculearn-ai-service
+  _REPO_NAME: doculearn-repo
+  _IMAGE_URI: us-central1-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/doculearn-ai:latest
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/doculearn-database-url/versions/latest
+    env: 'DATABASE_URL'

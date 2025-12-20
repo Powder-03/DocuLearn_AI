@@ -19,6 +19,10 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "❌ Docker not found. Please install Docker." -ForegroundColor Red
     exit 1
 }
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+    Write-Host "❌ Python not found. Please install Python (required for database migrations)." -ForegroundColor Red
+    exit 1
+}
 
 # Get Project ID
 $PROJECT_ID = (gcloud config get-value project 2>$null)
@@ -32,7 +36,7 @@ Write-Host "✅ Using Project: $PROJECT_ID" -ForegroundColor Green
 # --- Step 1: Install Dependencies ---
 Write-Host ""
 Write-Host "Step 1: Checking Python dependencies (for migrations)..." -ForegroundColor Cyan
-pip install -r requirements.txt | Out-Null
+python -m pip install -r requirements.txt | Out-Null
 Write-Host "✅ Dependencies installed" -ForegroundColor Green
 
 # --- Step 2: Database Migrations ---
@@ -73,6 +77,10 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "Step 4: Deploying to Cloud Run..." -ForegroundColor Cyan
 
-gcloud run deploy $SERVICE_NAME --image $IMAGE_URI --platform managed --region $REGION --allow-unauthenticated --port 8001 --update-secrets=DATABASE_URL=doculearn-database-url:latest,MONGODB_URL=doculearn-mongodb-url:latest,GOOGLE_API_KEY=doculearn-google-api-key:latest
+gcloud run deploy $SERVICE_NAME --image $IMAGE_URI --platform managed --region $REGION --allow-unauthenticated --port 8001 --update-secrets="DATABASE_URL=doculearn-database-url:latest,MONGODB_URL=doculearn-mongodb-url:latest,GOOGLE_API_KEY=doculearn-google-api-key:latest" --set-env-vars "PLANNING_LLM_MODEL=gemini-2.5-pro,TUTORING_LLM_MODEL=gemini-2.5-flash"
+if ($LASTEXITCODE -ne 0) { 
+    Write-Host "❌ Deployment failed." -ForegroundColor Red
+    exit 1 
+}
 
 Write-Host "✅ Deployment Complete!" -ForegroundColor Green
