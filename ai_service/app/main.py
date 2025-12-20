@@ -27,14 +27,6 @@ async def lifespan(app: FastAPI):
     print("   - MongoDB: Atlas Cloud")
     print(f"   - LLM: Google Gemini ({settings.PLANNING_LLM_MODEL})")
     
-    # Create database tables
-    try:
-        # Run blocking I/O in a thread pool to avoid blocking the event loop
-        await run_in_threadpool(Base.metadata.create_all, bind=engine)
-        print("✅ PostgreSQL tables created/verified")
-    except Exception as e:
-        print(f"⚠️  PostgreSQL setup warning: {e}")
-    
     # Connect to MongoDB Atlas
     try:
         await mongodb_service.connect()
