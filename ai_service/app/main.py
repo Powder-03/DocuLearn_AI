@@ -2,10 +2,23 @@
 Main FastAPI Application Entry Point
 Clean, modular structure with async REST API
 """
+import logging
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
+
+# --- Configure Logging ---
+# This setup ensures logs are formatted and sent to stdout/stderr,
+# which is the standard for containerized applications and Google Cloud Run.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
+)
+logger = logging.getLogger(__name__)
+# --- End Logging Configuration ---
 
 from app.core.config import settings
 from app.db.models import Base
@@ -14,30 +27,36 @@ from app.api.router import api_router
 from app.services.mongodb import mongodb_service
 
 # Debug log to verify app loading
-print("🔍 Loading DocuLearn AI Service module...")
+logger.info("🔍 Loading DocuLearn AI Service module...")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle - startup and shutdown events."""
-    # Startup
-    print("🚀 Starting DocuLearn AI Service...")
-    print("📊 Cloud Infrastructure:")
-    print("   - PostgreSQL: Google Cloud SQL")
-    print("   - MongoDB: Atlas Cloud")
-    print(f"   - LLM: Google Gemini ({settings.PLANNING_LLM_MODEL})")
-    
-    # MongoDB connection is now handled lazily by the service itself
-    # on the first request that needs it. This speeds up startup.
-    
-    print("✅ DocuLearn AI Service ready for production!")
-    
-    yield
-    
-    # Shutdown
-    print("🛑 Shutting down DocuLearn AI Service...")
-    await mongodb_service.close()
-    print("✅ Connections closed")
+    try:
+        # Startup
+        logger.info("🚀 Starting DocuLearn AI Service...")
+        logger.info("📊 Cloud Infrastructure:")
+        logger.info("   - PostgreSQL: Google Cloud SQL")
+        logger.info("   - MongoDB: Atlas Cloud")
+        logger.info(f"   - LLM: Google Gemini ({settings.PLANNING_LLM_MODEL})")
+        
+        # MongoDB connection is now handled lazily by the service itself
+        # on the first request that needs it. This speeds up startup.
+        
+        logger.info("✅ DocuLearn AI Service ready for production!")
+        
+        yield
+        
+        # Shutdown
+        logger.info("🛑 Shutting down DocuLearn AI Service...")
+        await mongodb_service.close()
+        logger.info("✅ Connections closed")
+        
+    except Exception as e:
+        logger.critical(f"❌ FATAL: Application startup failed: {e}", exc_info=True)
+        # Re-raise the exception to ensure the container exits and Cloud Run reports a failure.
+        raise
 
 
 # Initialize FastAPI app
