@@ -36,7 +36,8 @@ async def lifespan(app: FastAPI):
         print("✅ MongoDB Atlas connected")
     except Exception as e:
         print(f"❌ MongoDB Atlas connection failed: {e}")
-        raise
+        # Don't crash the app on DB connection failure, so we can see logs in Cloud Run
+        # raise
     
     print("✅ DocuLearn AI Service ready for production!")
     
