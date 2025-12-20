@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     PLANNING_LLM_TEMPERATURE: float = 0.7
     
     TUTORING_LLM_PROVIDER: str = "google"
-    TUTORING_LLM_MODEL: str = "gemini-2.5-pro"
+    TUTORING_LLM_MODEL: str = "gemini-2.5-flash"
     TUTORING_LLM_TEMPERATURE: float = 0.7
     
     class Config:

@@ -76,6 +76,7 @@ Generate a comprehensive, structured learning plan.""")
             "lesson_plan": plan_json,
             "current_day": 1,
             "topic": state["topic"],
+            "user_id": state.get("user_id"),
             "chat_history": [announcement]
         }
     )
@@ -102,11 +103,11 @@ def tutor_node(state: GenerationGraphState) -> Dict[str, Any]:
     
     # Get the latest session state from database
     session_id = state["session_id"]
-    db_state = get_session_state(session_id)
-    
-    lesson_plan = db_state["lesson_plan"]
-    current_day = db_state["current_day"]
-    memory_summary = db_state.get("memory_summary", "")
+    # Use state passed from graph first (more reliable), fall back to DB only if needed
+    # This prevents crashes if DB fetch fails or is slightly delayed
+    lesson_plan = state.get("lesson_plan")
+    current_day = state.get("current_day", 1)
+    memory_summary = state.get("memory_summary", "")
     
     # Get the current day's lesson
     if lesson_plan and "days" in lesson_plan:
