@@ -33,7 +33,9 @@ def get_url():
     # First, check for the full connection string (used by Cloud Run & Neon)
     database_url = os.getenv("DATABASE_URL")
     if database_url:
-        return database_url
+        # Fix: Remove channel_binding=require which causes issues with some psycopg2 builds
+        # We keep sslmode=require which is sufficient for connection security
+        return database_url.replace("&channel_binding=require", "").replace("?channel_binding=require", "?")
         
     user = os.getenv("POSTGRES_USER", "doculearn")
     password = os.getenv("POSTGRES_PASSWORD", "doculearn_pass")
